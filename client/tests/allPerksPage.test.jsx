@@ -23,18 +23,15 @@ describe('AllPerks page (Directory)', () => {
 
     // Wait for the baseline card to appear which guarantees the asynchronous
     // fetch finished.
-    await waitFor(() => {
-      expect(screen.getByText(seededPerk.title)).toBeInTheDocument();
-    });
+    // Allow generous time as this hits a live backend
+    await screen.findByText(seededPerk.title, {}, { timeout: 10000 });
 
     // Interact with the name filter input using the real value that
     // corresponds to the seeded record.
     const nameFilter = screen.getByPlaceholderText('Enter perk name...');
     fireEvent.change(nameFilter, { target: { value: seededPerk.title } });
 
-    await waitFor(() => {
-      expect(screen.getByText(seededPerk.title)).toBeInTheDocument();
-    });
+    await screen.findByText(seededPerk.title, {}, { timeout: 10000 });
 
     // The summary text should continue to reflect the number of matching perks.
     expect(screen.getByText(/showing/i)).toHaveTextContent('Showing');
@@ -51,7 +48,33 @@ describe('AllPerks page (Directory)', () => {
   */
 
   test('lists public perks and responds to merchant filtering', async () => {
-    // This will always fail until the TODO above is implemented.
-    expect(true).toBe(false);
+    // Use the seeded record created during test setup for deterministic checks
+    const seededPerk = global.__TEST_CONTEXT__.seededPerk;
+
+    // Render the page so it performs a real HTTP fetch
+    renderWithRouter(
+      <Routes>
+        <Route path="/explore" element={<AllPerks />} />
+      </Routes>,
+      { initialEntries: ['/explore'] }
+    );
+
+    // Wait for the initial fetch to complete and the seeded record to be visible
+    await screen.findByText(seededPerk.title, {}, { timeout: 10000 });
+
+    // Select the seeded record's merchant from the dropdown
+  const merchantSelect = screen.getByRole('combobox');
+
+    // Ensure the merchant option exists (unique merchant seeded in setup)
+    await screen.findByRole('option', { name: seededPerk.merchant }, { timeout: 10000 });
+
+    // Change the select to the seeded merchant value to trigger filtering
+    fireEvent.change(merchantSelect, { target: { value: seededPerk.merchant } });
+
+    // The seeded perk should be displayed after filtering by its merchant
+    await screen.findByText(seededPerk.title, {}, { timeout: 10000 });
+
+    // Summary text should continue to reflect count presence (don't assume exact count)
+    expect(screen.getByText(/showing/i)).toHaveTextContent(/Showing/i);
   });
 });
